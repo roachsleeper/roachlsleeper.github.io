@@ -388,6 +388,83 @@ RED_GOLD_BLAST_SRCS.forEach((src, index) => {
   redGoldBlastImgs[index] = img;
 });
 
+const GOLD_ARMOR_BLAST_SRCS = [
+  'images/mask-gold-armor-blast-1.png',
+  'images/mask-gold-armor-blast-2.png',
+  'images/mask-gold-armor-blast-3.png',
+];
+// The supplied frames have transparent padding and a large flag. Keep the
+// body anchor centered on the character so the prop does not change scale or
+// make the character jump during the skill.
+const GOLD_ARMOR_BLAST_BODY = {
+  left: 480,
+  top: 220,
+  right: 920,
+  bottom: 982,
+  scaleHeight: 758,
+};
+const GOLD_ARMOR_BLAST_FRAME_TICKS = 5;
+const goldArmorBlastImgs = GOLD_ARMOR_BLAST_SRCS.map(() => null);
+const goldArmorBlastLoaded = GOLD_ARMOR_BLAST_SRCS.map(() => false);
+GOLD_ARMOR_BLAST_SRCS.forEach((src, index) => {
+  const img = wx.createImage();
+  img.onload = () => { goldArmorBlastLoaded[index] = true; };
+  img.src = src;
+  goldArmorBlastImgs[index] = img;
+});
+
+const GOLD_ARMOR_DEFENSE_SRCS = [
+  'images/mask-gold-armor-defense-1.png',
+  'images/mask-gold-armor-defense-2.png',
+  'images/mask-gold-armor-defense-3.png',
+  'images/mask-gold-armor-defense-4.png',
+];
+// Keep the character body anchored at the same scale as the gold-armor
+// attack frames; the flag is intentionally excluded from the body bounds.
+const GOLD_ARMOR_DEFENSE_BODY = {
+  left: 480,
+  top: 220,
+  right: 920,
+  bottom: 982,
+  scaleHeight: 758,
+};
+const GOLD_ARMOR_DEFENSE_FRAME_TICKS = 8;
+const goldArmorDefenseImgs = GOLD_ARMOR_DEFENSE_SRCS.map(() => null);
+const goldArmorDefenseLoaded = GOLD_ARMOR_DEFENSE_SRCS.map(() => false);
+GOLD_ARMOR_DEFENSE_SRCS.forEach((src, index) => {
+  const img = wx.createImage();
+  img.onload = () => { goldArmorDefenseLoaded[index] = true; };
+  img.src = src;
+  goldArmorDefenseImgs[index] = img;
+});
+
+const RED_GOLD_DEFENSE_SRCS = [
+  'images/mask-red-gold-axe-spin-1.png',
+  'images/mask-red-gold-axe-spin-2.png',
+  'images/mask-red-gold-axe-spin-3.png',
+  'images/mask-red-gold-axe-spin-4.png',
+  'images/mask-red-gold-axe-spin-5.png',
+  'images/mask-red-gold-axe-spin-6.png',
+];
+// These frames use a wider 1774x887 canvas. Anchor on the character body so
+// the rotating axe does not change the hero scale or screen position.
+const RED_GOLD_DEFENSE_BODY = {
+  left: 665,
+  top: 114,
+  right: 1090,
+  bottom: 768,
+  scaleHeight: 654,
+};
+const RED_GOLD_DEFENSE_FRAME_TICKS = 4;
+const redGoldDefenseImgs = RED_GOLD_DEFENSE_SRCS.map(() => null);
+const redGoldDefenseLoaded = RED_GOLD_DEFENSE_SRCS.map(() => false);
+RED_GOLD_DEFENSE_SRCS.forEach((src, index) => {
+  const img = wx.createImage();
+  img.onload = () => { redGoldDefenseLoaded[index] = true; };
+  img.src = src;
+  redGoldDefenseImgs[index] = img;
+});
+
 // The first three frames use a 1254x1254 canvas. The last source has a
 // slightly different canvas, so keep its visible bottom aligned explicitly.
 const SHIELD_IMPACT_META = [
@@ -491,6 +568,57 @@ function drawRedGoldBlast(ctx, player, effect) {
     84,
     img,
     body,
+    false
+  );
+}
+
+function drawGoldArmorBlast(ctx, player, effect) {
+  const elapsed = Math.max(0, (effect.life || BLAST_IMPACT_TOTAL_TICKS) - effect.timer);
+  const frameIndex = Math.min(GOLD_ARMOR_BLAST_SRCS.length - 1, Math.floor(elapsed / GOLD_ARMOR_BLAST_FRAME_TICKS));
+  const img = goldArmorBlastImgs[frameIndex];
+  if (!goldArmorBlastLoaded[frameIndex] || !img || !img.width) return false;
+
+  return drawMaskedCharacterImage(
+    ctx,
+    player.x,
+    player.y + player.height + 2,
+    84,
+    img,
+    GOLD_ARMOR_BLAST_BODY,
+    false
+  );
+}
+
+function drawGoldArmorDefense(ctx, player, effect) {
+  const elapsed = Math.max(0, (effect.life || SHIELD_IMPACT_TOTAL_TICKS) - effect.timer);
+  const frameIndex = Math.min(GOLD_ARMOR_DEFENSE_SRCS.length - 1, Math.floor(elapsed / GOLD_ARMOR_DEFENSE_FRAME_TICKS));
+  const img = goldArmorDefenseImgs[frameIndex];
+  if (!goldArmorDefenseLoaded[frameIndex] || !img || !img.width) return false;
+
+  return drawMaskedCharacterImage(
+    ctx,
+    player.x,
+    player.y + player.height + 2,
+    84,
+    img,
+    GOLD_ARMOR_DEFENSE_BODY,
+    false
+  );
+}
+
+function drawRedGoldDefense(ctx, player, effect) {
+  const elapsed = Math.max(0, (effect.life || SHIELD_IMPACT_TOTAL_TICKS) - effect.timer);
+  const frameIndex = Math.min(RED_GOLD_DEFENSE_SRCS.length - 1, Math.floor(elapsed / RED_GOLD_DEFENSE_FRAME_TICKS));
+  const img = redGoldDefenseImgs[frameIndex];
+  if (!redGoldDefenseLoaded[frameIndex] || !img || !img.width) return false;
+
+  return drawMaskedCharacterImage(
+    ctx,
+    player.x,
+    player.y + player.height + 2,
+    84,
+    img,
+    RED_GOLD_DEFENSE_BODY,
     false
   );
 }
@@ -692,7 +820,11 @@ export function drawSkillEffects(ctx, effects, player, selectedMask) {
     if (eff.type === 'shield') {
       const customDefenseDrawn = selectedMask === 'whiteTeal'
         ? drawWhiteTealDefense(ctx, player, eff)
-        : false;
+        : selectedMask === 'goldArmor'
+          ? drawGoldArmorDefense(ctx, player, eff)
+          : selectedMask === 'redGold'
+            ? drawRedGoldDefense(ctx, player, eff)
+            : false;
       if (!customDefenseDrawn) drawShieldImpact(ctx, player, eff);
       const elapsed = Math.max(0, (eff.life || SHIELD_IMPACT_TOTAL_TICKS) - eff.timer);
       const pulseProgress = Math.min(1, elapsed / SHIELD_IMPACT_ACTIVE_TICKS);
@@ -707,7 +839,9 @@ export function drawSkillEffects(ctx, effects, player, selectedMask) {
         ? drawRedGoldBlast(ctx, player, eff)
         : selectedMask === 'whiteTeal'
           ? drawWhiteTealBlast(ctx, player, eff)
-          : false;
+          : selectedMask === 'goldArmor'
+            ? drawGoldArmorBlast(ctx, player, eff)
+            : false;
       if (!customBlastDrawn) drawBlastImpact(ctx, player, eff);
       const elapsed = Math.max(0, (eff.life || BLAST_IMPACT_TOTAL_TICKS) - eff.timer);
       const pulseProgress = Math.min(1, elapsed / BLAST_IMPACT_ACTIVE_TICKS);

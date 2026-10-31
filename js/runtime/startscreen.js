@@ -2,7 +2,7 @@ import { SCREEN_WIDTH, SCREEN_HEIGHT } from '../render.js';
 import { MASKS } from './mask.js';
 import { drawMask, drawMaskPreview } from './draw.js';
 
-const START_BACKGROUND_SRC = 'images/start-screen-bg.png';
+const START_BACKGROUND_SRC = 'images/start-screen-bg-compact.png';
 
 const MASK_LABELS = {
   none: '素面',
@@ -27,6 +27,9 @@ export default class StartScreen {
     this.visible = true;
     this.backgroundImage = null;
     this.backgroundLoaded = false;
+    this.maskInfoVisible = false;
+    this.maskInfoShownAt = 0;
+    this.maskInfoExpireAt = 0;
     this.loadBackground();
     this.layoutScene();
   }
@@ -44,8 +47,9 @@ export default class StartScreen {
     this.mirror = {
       x: SCREEN_WIDTH / 2,
       y: SCREEN_HEIGHT * 0.39,
-      rx: Math.min(SCREEN_WIDTH * 0.37, 190),
-      ry: Math.min(SCREEN_HEIGHT * 0.27, 210),
+      // Match the actual glass area in start-screen-bg-compact.png.
+      rx: Math.min(SCREEN_WIDTH * 0.135, 130),
+      ry: Math.min(SCREEN_HEIGHT * 0.245, 132),
     };
 
     const slotSize = Math.max(46, Math.min(58, SCREEN_HEIGHT * 0.15));
@@ -68,24 +72,25 @@ export default class StartScreen {
 
     const buttonWidth = Math.min(142, SCREEN_WIDTH * 0.18);
     const buttonHeight = Math.max(36, Math.min(42, SCREEN_HEIGHT * 0.115));
-    const gap = Math.max(12, SCREEN_WIDTH * 0.018);
-    const totalWidth = buttonWidth * 2 + gap;
+    const totalWidth = buttonWidth;
     const startX = SCREEN_WIDTH / 2 - totalWidth / 2;
     const buttonY = Math.min(SCREEN_HEIGHT - buttonHeight - 9, this.tableY + SCREEN_HEIGHT * 0.17);
 
     this.startBtn = { x: startX, y: buttonY, width: buttonWidth, height: buttonHeight };
-    this.browseBtn = { x: startX + buttonWidth + gap, y: buttonY, width: buttonWidth, height: buttonHeight };
   }
 
   handleTouch(x, y) {
     for (const btn of this.maskButtons) {
       if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
         this.selectedMask = btn.mask.id;
+        this.maskInfoVisible = true;
+        this.maskInfoShownAt = Date.now();
+        this.maskInfoExpireAt = this.maskInfoShownAt + 3200;
         return null;
       }
     }
 
-    if (this.browseBtn && this.contains(this.browseBtn, x, y)) return 'browse';
+    this.maskInfoVisible = false;
     if (this.startBtn && this.contains(this.startBtn, x, y)) return 'start';
     return null;
   }
@@ -100,7 +105,11 @@ export default class StartScreen {
     this.drawBackground(ctx);
     this.drawMirrorPreview(ctx);
     this.drawMaskHooks(ctx);
-    this.drawMaskInfo(ctx);
+    if (this.maskInfoVisible && Date.now() < this.maskInfoExpireAt) {
+      this.drawMaskInfo(ctx);
+    } else {
+      this.maskInfoVisible = false;
+    }
     this.drawButtons(ctx);
   }
 
@@ -152,16 +161,58 @@ export default class StartScreen {
 
     ctx.fillStyle = '#f1c58f';
     ctx.font = `${Math.max(10, SCREEN_HEIGHT * 0.031)}px serif`;
-    ctx.fillText('在镜前挑一张面具，踏入属于你的故事', SCREEN_WIDTH / 2, titleY + SCREEN_HEIGHT * 0.065);
+    ctx.fillText('点击面具，查看对应地区傩戏', SCREEN_WIDTH / 2, titleY + SCREEN_HEIGHT * 0.065);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+  }
+
+  drawPaperTitle(ctx) {
+    const titleCard = { x: SCREEN_WIDTH * 0.065, y: SCREEN_HEIGHT * 0.095, width: 220, height: 72 };
+    ctx.save();
+    ctx.translate(titleCard.x + titleCard.width / 2, titleCard.y + titleCard.height / 2);
+    ctx.rotate(-0.045);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.42)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 5;
+    ctx.fillStyle = '#e8d0a0';
+    ctx.fillRect(-titleCard.width / 2, -titleCard.height / 2, titleCard.width, titleCard.height);
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = 'rgba(114, 70, 45, 0.2)';
+    ctx.fillRect(-titleCard.width / 2 + 12, -titleCard.height / 2 + 12, titleCard.width - 24, 1);
+    ctx.fillRect(-titleCard.width / 2 + 12, titleCard.height / 2 - 12, titleCard.width - 24, 1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#4b2630';
+    ctx.font = `bold ${Math.max(22, SCREEN_HEIGHT * 0.062)}px serif`;
+    ctx.fillText('《傩面之下》', 0, -5);
+    ctx.fillStyle = '#7e493d';
+    ctx.font = `${Math.max(10, SCREEN_HEIGHT * 0.026)}px serif`;
+    ctx.fillText('后台候场 · 未开场', 0, 25);
+    ctx.restore();
+
+    const note = { x: SCREEN_WIDTH * 0.055, y: SCREEN_HEIGHT * 0.285, width: 210, height: 54 };
+    ctx.save();
+    ctx.translate(note.x + note.width / 2, note.y + note.height / 2);
+    ctx.rotate(0.025);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.32)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = '#d8bb7e';
+    ctx.fillRect(-note.width / 2, -note.height / 2, note.width, note.height);
+    ctx.shadowColor = 'transparent';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#503039';
+    ctx.font = `${Math.max(11, SCREEN_HEIGHT * 0.028)}px serif`;
+    ctx.fillText('戴上谁的面具，就走进谁的傩戏', 0, 0);
+    ctx.restore();
   }
 
   drawMirrorPreview(ctx) {
     const m = this.mirror;
     ctx.save();
     ctx.beginPath();
-    ctx.ellipse(m.x, m.y, Math.max(20, m.rx - 8), Math.max(20, m.ry - 8), 0, 0, Math.PI * 2);
+    ctx.ellipse(m.x, m.y, m.rx, m.ry, 0, 0, Math.PI * 2);
     ctx.clip();
     drawMaskPreview(ctx, m.x, m.y - 3, this.selectedMask);
     ctx.restore();
@@ -190,7 +241,7 @@ export default class StartScreen {
 
     ctx.fillStyle = '#d5a875';
     ctx.font = `${Math.max(10, SCREEN_HEIGHT * 0.031)}px serif`;
-    ctx.fillText('在镜前挑一张面具，踏入属于你的故事', SCREEN_WIDTH / 2, titleY + SCREEN_HEIGHT * 0.065);
+    ctx.fillText('点击面具，了解它所对应的地区傩戏文化', SCREEN_WIDTH / 2, titleY + SCREEN_HEIGHT * 0.065);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
   }
@@ -491,33 +542,78 @@ export default class StartScreen {
   drawMaskInfo(ctx) {
     const mask = MASKS.find(m => m.id === this.selectedMask) || MASKS[0];
     const label = MASK_LABELS[mask.id] || mask.name;
-    const desc = mask.bonus ? this.getBonusText(mask.id) : '暂不佩戴面具';
-    const y = this.tableY - SCREEN_HEIGHT * 0.075;
+    const selectedButton = this.maskButtons.find(btn => btn.mask.id === this.selectedMask);
+    if (!selectedButton) return;
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#f5d9a5';
-    ctx.font = `bold ${Math.max(12, SCREEN_HEIGHT * 0.038)}px serif`;
-    ctx.fillText(`已选：${label}`, SCREEN_WIDTH / 2, y);
-    ctx.fillStyle = '#d6ab7f';
-    ctx.font = `${Math.max(10, SCREEN_HEIGHT * 0.029)}px serif`;
-    ctx.fillText(desc, SCREEN_WIDTH / 2, y + SCREEN_HEIGHT * 0.045);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-  }
-
-  getBonusText(id) {
-    const texts = {
-      redGold: '普通近战攻击',
-      whiteTeal: '远程投射攻击',
-      goldArmor: '按住蓄力后释放',
+    const now = Date.now();
+    const fadeIn = Math.min(1, (now - this.maskInfoShownAt) / 180);
+    const fadeOut = Math.min(1, (this.maskInfoExpireAt - now) / 500);
+    const alpha = Math.max(0, Math.min(fadeIn, fadeOut));
+    const width = 270;
+    const height = 78;
+    const gap = 16;
+    const card = {
+      x: selectedButton.x < SCREEN_WIDTH / 2
+        ? selectedButton.x + selectedButton.width + gap
+        : selectedButton.x - width - gap,
+      y: selectedButton.y + selectedButton.height / 2 - height / 2,
+      width,
+      height,
     };
-    return texts[id] || '面具效果已准备';
+    card.x = Math.max(12, Math.min(SCREEN_WIDTH - card.width - 12, card.x));
+    card.y = Math.max(74, Math.min(SCREEN_HEIGHT - card.height - 12, card.y));
+    const sourceX = selectedButton.x + selectedButton.width / 2;
+    const sourceY = selectedButton.y + selectedButton.height / 2;
+    const cardOnRight = card.x > sourceX;
+    const targetX = cardOnRight ? card.x : card.x + card.width;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    ctx.strokeStyle = 'rgba(255, 226, 155, 0.72)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sourceX, sourceY);
+    ctx.lineTo(targetX, sourceY);
+    ctx.stroke();
+    ctx.fillStyle = '#ffe39e';
+    ctx.beginPath();
+    ctx.arc(sourceX, sourceY, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(30, 12, 20, 0.82)';
+    ctx.beginPath();
+    ctx.moveTo(targetX, sourceY - 9);
+    ctx.lineTo(cardOnRight ? targetX - 9 : targetX + 9, sourceY);
+    ctx.lineTo(targetX, sourceY + 9);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(30, 12, 20, 0.78)';
+    ctx.beginPath();
+    ctx.roundRect(card.x, card.y, card.width, card.height, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(238, 195, 126, 0.62)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffe8b0';
+    ctx.font = 'bold 16px serif';
+    ctx.fillText(`当前：${label}`, card.x + 14, card.y + 17);
+
+    ctx.fillStyle = '#f0c98f';
+    ctx.font = '12px serif';
+    ctx.fillText(`${mask.region} · ${mask.opera}`, card.x + 14, card.y + 39);
+    ctx.fillStyle = '#caa77e';
+    ctx.font = '11px serif';
+    ctx.fillText(mask.cultureShort, card.x + 14, card.y + 61);
+    ctx.restore();
   }
 
   drawButtons(ctx) {
     this.drawButton(ctx, this.startBtn, '开始游戏', true);
-    this.drawButton(ctx, this.browseBtn, '浏览场景', false);
   }
 
   drawButton(ctx, button, label, primary) {

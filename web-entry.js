@@ -28,11 +28,15 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js';
   }
 
   const loader = document.createElement('div');
-  loader.style.cssText = 'position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:#080b18;color:#f6e8c4;font:16px Microsoft YaHei,system-ui,sans-serif;transition:opacity .25s ease;';
+  loader.className = 'asset-loader';
+  loader.setAttribute('role', 'status');
+  loader.setAttribute('aria-live', 'polite');
   loader.innerHTML = '<div style="width:min(82vw,420px);text-align:center"><div style="font-size:22px;font-weight:700;margin-bottom:18px">正在加载游戏素材</div><div style="height:10px;border-radius:99px;background:#202a45;overflow:hidden"><div data-progress style="width:0%;height:100%;background:#edbd6b;transition:width .15s ease"></div></div><div data-label style="margin-top:12px;color:#a99e9d;font-size:13px">0%</div></div>';
   document.body.appendChild(loader);
   loader.innerHTML = '<style>.asset-loader-card{width:min(82vw,420px);padding:30px 28px;border:1px solid rgba(237,189,107,.45);border-radius:20px;background:linear-gradient(145deg,#202b4a,#11182e);box-shadow:0 18px 60px rgba(0,0,0,.5);text-align:center}.asset-loader-mark{width:58px;height:58px;margin:0 auto 18px;border-radius:50%;background:radial-gradient(circle,#ffe9a8 0 12%,#edbd6b 13% 28%,rgba(237,189,107,.18) 29% 58%,transparent 60%);animation:assetPulse 1.2s ease-in-out infinite}.asset-loader-title{font-size:21px;font-weight:700}.asset-loader-sub{margin:8px 0 20px;color:#a99e9d;font-size:13px}.asset-loader-dots{display:inline-flex;gap:5px;margin-left:4px}.asset-loader-dots i{width:5px;height:5px;border-radius:50%;background:#edbd6b;animation:assetDot 1s ease-in-out infinite}.asset-loader-dots i:nth-child(2){animation-delay:.15s}.asset-loader-dots i:nth-child(3){animation-delay:.3s}@keyframes assetPulse{50%{transform:scale(1.12);filter:brightness(1.3)}}@keyframes assetDot{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}</style><div class="asset-loader-card"><div class="asset-loader-mark"></div><div class="asset-loader-title">正在加载游戏素材<span class="asset-loader-dots"><i></i><i></i><i></i></span></div><div class="asset-loader-sub">场景、角色、技能准备中</div><div style="height:10px;border-radius:99px;background:#202a45;overflow:hidden"><div data-progress style="width:0%;height:100%;background:linear-gradient(90deg,#b87845,#edbd6b);transition:width .15s ease"></div></div><div data-label style="margin-top:12px;color:#a99e9d;font-size:13px">0%</div></div>';
+  loader.innerHTML = '<div class="asset-loader-glow" aria-hidden="true"></div><div class="asset-loader-content"><div class="asset-loader-emblem" aria-hidden="true"><span></span></div><div class="asset-loader-kicker">NIGHT RUNNER <b>·</b> RESOURCE LOAD</div><div class="asset-loader-title">正在准备夜行</div><div class="asset-loader-sub">场景、角色与技能资源载入中<span class="asset-loader-dots"><i></i><i></i><i></i></span></div><div class="asset-loader-progress" aria-hidden="true"><div class="asset-loader-progress-track"><div data-progress class="asset-loader-progress-fill"></div><i class="asset-loader-progress-spark"></i></div><div class="asset-loader-progress-ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div data-label class="asset-loader-label">资源同步 0%</div></div>';
   const progressBar = loader.querySelector('[data-progress]');
+  const progressSpark = loader.querySelector('.asset-loader-progress-spark');
   const progressLabel = loader.querySelector('[data-label]');
 
   function preloadImage(src) {
@@ -57,7 +61,8 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js';
       loaded += 1;
       const percent = Math.round((loaded / total) * 100);
       progressBar.style.width = `${percent}%`;
-      progressLabel.textContent = `${percent}% (${loaded}/${total})`;
+      progressSpark.style.left = `${percent}%`;
+      progressLabel.textContent = `资源同步 ${percent}% · ${loaded}/${total}`;
     })));
   }
 
@@ -188,7 +193,7 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js';
     if (['a', 'd', 'arrowleft', 'arrowright'].includes(key)) sendKeyboardTouch(logicalWidth / 2, logicalHeight / 2, 'end');
   });
 
-  preloadGameImages().then(() => import('./game.js?v=preload-v1')).then(() => {
+  preloadGameImages().then(() => import('./game.js?v=entrance-v4')).then(() => {
     document.body.dataset.gameLoaded = 'true';
     hideLoader();
   }).catch((error) => {

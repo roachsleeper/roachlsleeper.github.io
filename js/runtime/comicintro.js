@@ -1,12 +1,12 @@
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from '../render.js';
 
-const COMIC_SRC = 'images/comic/hero-fall-mask-choice-manga-page.png';
+const COMIC_SRC = 'images/comic/hero-mask-workshop-manga-page.png';
 
 const PANELS = [
-  { x: 14, y: 14, width: 389, height: 870, duration: 210 },
-  { x: 309, y: 14, width: 704, height: 456, duration: 120 },
-  { x: 312, y: 430, width: 705, height: 486, duration: 240 },
-  { x: 14, y: 900, width: 1000, height: 622, duration: 210 },
+  { x: 14, y: 14, width: 326, height: 980, duration: 210 },
+  { x: 354, y: 14, width: 656, height: 526, duration: 120 },
+  { x: 354, y: 550, width: 656, height: 444, duration: 240 },
+  { x: 14, y: 1008, width: 996, height: 488, duration: 210 },
 ];
 
 export default class ComicIntro {
@@ -101,9 +101,7 @@ export default class ComicIntro {
       focusY = 0.52;
     }
 
-    const shake = this.panelIndex === 1 && localFrame < 26
-      ? (1 - localFrame / 26) * 7
-      : 0;
+    const shake = 0;
     const pulse = this.panelIndex === 3 ? Math.sin(localFrame / 12) * 0.012 : 0;
     zoom += pulse;
 

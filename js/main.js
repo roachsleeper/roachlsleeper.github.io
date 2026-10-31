@@ -7,6 +7,8 @@ import PauseScreen from './runtime/pausescreen.js';
 import GameOverScreen from './runtime/gameoverscreen.js';
 import HUD from './runtime/hud.js';
 import ComicIntro from './runtime/comicintro.js';
+import CoverScreen from './runtime/coverscreen.js';
+import CurtainTransition from './runtime/curtaintransition.js';
 import DataBus from './databus.js';
 import Music from './runtime/music.js';
 import { MASKS } from './runtime/mask.js';
@@ -26,12 +28,21 @@ export default class Main {
     this.browseScreen = new BrowseScreen();
     this.startScreen = new StartScreen();
     this.startScreen.visible = false;
+    this.coverScreen = new CoverScreen(
+      () => {
+        this.startScreen.visible = false;
+        this.comicIntro.visible = true;
+      },
+      (ctx) => { this.comicIntro.render(ctx); },
+    );
     this.comicIntro = new ComicIntro(() => {
       this.startScreen.visible = true;
     });
+    this.comicIntro.visible = false;
     this.pauseScreen = new PauseScreen();
     this.gameOverScreen = new GameOverScreen();
     this.hud = new HUD();
+    this.transition = new CurtainTransition();
 
     this.ctx = canvas.getContext('2d');
     this.aniId = 0;
@@ -60,20 +71,36 @@ export default class Main {
     wx.onTouchStart((e) => {
       const { clientX: x, clientY: y } = e.touches[0];
 
+      if (this.coverScreen.visible) {
+        this.coverScreen.handleTouch(x, y);
+        return;
+      }
+
       if (this.comicIntro.visible) {
         this.comicIntro.handleTouch(x, y);
         return;
       }
 
+      if (this.transition.active) return;
+
       if (this.browseScreen.visible) {
         const result = this.browseScreen.handleTouchStart(x, y);
         if (result === 'start') {
-          this.browseScreen.visible = false;
-          this.startScreen.visible = true;
+          this.beginTransition(() => {
+            this.browseScreen.visible = false;
+            this.startScreen.visible = true;
+          });
         } else if (result === 'back') {
-          this.browseScreen.visible = false;
-          this.isRunning = true;
-          this.wasRunningBeforeBrowse = false;
+          this.beginTransition(() => {
+            this.browseScreen.visible = false;
+            this.startScreen.visible = true;
+            this.isRunning = false;
+            this.leftPressed = false;
+            this.rightPressed = false;
+            this.player.cancelCharge();
+            this.music.playStartBgm();
+            this.wasRunningBeforeBrowse = false;
+          });
         }
         return;
       }
@@ -82,10 +109,12 @@ export default class Main {
         this.music.playStartBgm();
         const result = this.startScreen.handleTouch(x, y);
         if (result === 'start') {
-          this.startGame();
+          this.beginTransition(() => this.startGame());
         } else if (result === 'browse') {
-          this.startScreen.visible = false;
-          this.browseScreen.visible = true;
+          this.beginTransition(() => {
+            this.startScreen.visible = false;
+            this.browseScreen.visible = true;
+          });
         }
         return;
       }
@@ -93,27 +122,35 @@ export default class Main {
       if (this.gameOverScreen.visible) {
         const result = this.gameOverScreen.handleTouch(x, y);
         if (result === 'restart') {
-          this.gameOverScreen.hide();
-          this.startGame();
+          this.beginTransition(() => {
+            this.gameOverScreen.hide();
+            this.startGame();
+          });
         }
         return;
       }
 
       if (this.pauseScreen.visible) {
         if (this.hud.handlePauseTouch(x, y)) {
-          this.pauseScreen.visible = false;
-          this.music.resumeGameBgm();
+          this.beginTransition(() => {
+            this.pauseScreen.visible = false;
+            this.music.resumeGameBgm();
+          });
           return;
         }
         const result = this.pauseScreen.handleTouch(x, y);
         if (result === 'resume') {
-          this.pauseScreen.visible = false;
-          this.music.resumeGameBgm();
+          this.beginTransition(() => {
+            this.pauseScreen.visible = false;
+            this.music.resumeGameBgm();
+          });
         } else if (result === 'restart') {
-          this.pauseScreen.visible = false;
-          this.startScreen.visible = true;
-          this.isRunning = false;
-          this.music.playStartBgm();
+          this.beginTransition(() => {
+            this.pauseScreen.visible = false;
+            this.startScreen.visible = true;
+            this.isRunning = false;
+            this.music.playStartBgm();
+          });
         }
         return;
       }
@@ -133,8 +170,10 @@ export default class Main {
         x, y, this.player, this.databus.monsters, this.databus.skillEffects
       );
       if (skillResult === 'browse') {
-        this.browseScreen.visible = true;
         this.wasRunningBeforeBrowse = true;
+        this.beginTransition(() => {
+          this.browseScreen.visible = true;
+        });
         return;
       }
       if (skillResult === 'skill1') {
@@ -202,6 +241,10 @@ export default class Main {
     this.music.playGameBgm();
 
     this.initMonsters();
+  }
+
+  beginTransition(action) {
+    return this.transition.start(action);
   }
 
   wearMask() {
@@ -431,7 +474,10 @@ export default class Main {
   }
 
   loop() {
-    if (this.comicIntro.visible) {
+    if (this.coverScreen.visible) {
+      this.coverScreen.update();
+      this.coverScreen.render(this.ctx);
+    } else if (this.comicIntro.visible) {
       this.comicIntro.update();
       this.comicIntro.render(this.ctx);
     } else if (this.browseScreen.visible) {
@@ -448,6 +494,11 @@ export default class Main {
     } else {
       this.update();
       this.render();
+    }
+
+    if (!this.coverScreen.visible) {
+      this.transition.update();
+      this.transition.render(this.ctx);
     }
 
     this.aniId = requestAnimationFrame(this.loop.bind(this));
