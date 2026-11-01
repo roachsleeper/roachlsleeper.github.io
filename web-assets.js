@@ -57,6 +57,7 @@ export const WEB_IMAGE_ASSETS = [
   'images/monster-armored-slow-walk-1.png',
   'images/monster-armored-slow-walk-2.png',
   'images/monster-armored-slow-walk-3.png',
+  'images/monster-armored-slow-walk-4.png',
   'images/monster-flame-fast-walk-1.png',
   'images/monster-flame-fast-walk-2.png',
   'images/monster-flame-fast-walk-3.png',
@@ -71,4 +72,5 @@ export const WEB_IMAGE_ASSETS = [
   'images/stage-gate.png',
   'images/stage-platform-new.png',
   'images/start-screen-bg.png',
+  'images/start-screen-bg-compact.png',
 ];

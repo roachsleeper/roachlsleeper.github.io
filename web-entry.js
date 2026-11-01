@@ -1,4 +1,4 @@
-import { WEB_IMAGE_ASSETS } from './web-assets.js';
+import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v1';
 
 /* Browser adapter: the actual game is still js/main.js and its original modules. */
 (function () {
@@ -31,9 +31,7 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js';
   loader.className = 'asset-loader';
   loader.setAttribute('role', 'status');
   loader.setAttribute('aria-live', 'polite');
-  loader.innerHTML = '<div style="width:min(82vw,420px);text-align:center"><div style="font-size:22px;font-weight:700;margin-bottom:18px">正在加载游戏素材</div><div style="height:10px;border-radius:99px;background:#202a45;overflow:hidden"><div data-progress style="width:0%;height:100%;background:#edbd6b;transition:width .15s ease"></div></div><div data-label style="margin-top:12px;color:#a99e9d;font-size:13px">0%</div></div>';
   document.body.appendChild(loader);
-  loader.innerHTML = '<style>.asset-loader-card{width:min(82vw,420px);padding:30px 28px;border:1px solid rgba(237,189,107,.45);border-radius:20px;background:linear-gradient(145deg,#202b4a,#11182e);box-shadow:0 18px 60px rgba(0,0,0,.5);text-align:center}.asset-loader-mark{width:58px;height:58px;margin:0 auto 18px;border-radius:50%;background:radial-gradient(circle,#ffe9a8 0 12%,#edbd6b 13% 28%,rgba(237,189,107,.18) 29% 58%,transparent 60%);animation:assetPulse 1.2s ease-in-out infinite}.asset-loader-title{font-size:21px;font-weight:700}.asset-loader-sub{margin:8px 0 20px;color:#a99e9d;font-size:13px}.asset-loader-dots{display:inline-flex;gap:5px;margin-left:4px}.asset-loader-dots i{width:5px;height:5px;border-radius:50%;background:#edbd6b;animation:assetDot 1s ease-in-out infinite}.asset-loader-dots i:nth-child(2){animation-delay:.15s}.asset-loader-dots i:nth-child(3){animation-delay:.3s}@keyframes assetPulse{50%{transform:scale(1.12);filter:brightness(1.3)}}@keyframes assetDot{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}</style><div class="asset-loader-card"><div class="asset-loader-mark"></div><div class="asset-loader-title">正在加载游戏素材<span class="asset-loader-dots"><i></i><i></i><i></i></span></div><div class="asset-loader-sub">场景、角色、技能准备中</div><div style="height:10px;border-radius:99px;background:#202a45;overflow:hidden"><div data-progress style="width:0%;height:100%;background:linear-gradient(90deg,#b87845,#edbd6b);transition:width .15s ease"></div></div><div data-label style="margin-top:12px;color:#a99e9d;font-size:13px">0%</div></div>';
   loader.innerHTML = '<div class="asset-loader-glow" aria-hidden="true"></div><div class="asset-loader-content"><div class="asset-loader-emblem" aria-hidden="true"><span></span></div><div class="asset-loader-kicker">NIGHT RUNNER <b>·</b> RESOURCE LOAD</div><div class="asset-loader-title">正在准备夜行</div><div class="asset-loader-sub">场景、角色与技能资源载入中<span class="asset-loader-dots"><i></i><i></i><i></i></span></div><div class="asset-loader-progress" aria-hidden="true"><div class="asset-loader-progress-track"><div data-progress class="asset-loader-progress-fill"></div><i class="asset-loader-progress-spark"></i></div><div class="asset-loader-progress-ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div data-label class="asset-loader-label">资源同步 0%</div></div>';
   const progressBar = loader.querySelector('[data-progress]');
   const progressSpark = loader.querySelector('.asset-loader-progress-spark');
@@ -56,19 +54,45 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js';
 
   function preloadGameImages() {
     let loaded = 0;
+    let successful = 0;
+    const failedAssets = [];
     const total = WEB_IMAGE_ASSETS.length;
-    return Promise.all(WEB_IMAGE_ASSETS.map((src) => preloadImage(src).then(() => {
+    return Promise.all(WEB_IMAGE_ASSETS.map((src) => preloadImage(src).then((ok) => {
       loaded += 1;
+      if (ok) successful += 1;
+      else failedAssets.push(src);
       const percent = Math.round((loaded / total) * 100);
       progressBar.style.width = `${percent}%`;
       progressSpark.style.left = `${percent}%`;
       progressLabel.textContent = `资源同步 ${percent}% · ${loaded}/${total}`;
-    })));
+    }))).then(() => {
+      if (!failedAssets.length) return;
+      const error = new Error(`Asset load failed: ${failedAssets.length} failed; ${successful}/${total} loaded`);
+      error.failedAssets = failedAssets;
+      throw error;
+    });
   }
 
   function hideLoader() {
     loader.style.opacity = '0';
     setTimeout(() => loader.remove(), 300);
+  }
+
+  function showAssetLoadError(error) {
+    const failedAssets = error && error.failedAssets ? error.failedAssets : [];
+    const title = loader.querySelector('.asset-loader-title');
+    const subtitle = loader.querySelector('.asset-loader-sub');
+    const failedCount = failedAssets.length;
+    if (title) title.textContent = '素材加载失败';
+    if (subtitle) {
+      const names = failedAssets.slice(0, 3).join('、');
+      subtitle.textContent = failedCount
+        ? `${failedCount} 个文件无法读取：${names}${failedCount > 3 ? '……' : ''}`
+        : '请检查发布目录中的图片文件和网络地址';
+    }
+    if (progressBar) progressBar.style.background = '#c95d5d';
+    if (progressSpark) progressSpark.style.display = 'none';
+    if (progressLabel) progressLabel.textContent = `加载失败 · ${failedCount || '未知'} 项`;
   }
 
   function createAssetImage() {
@@ -193,11 +217,12 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js';
     if (['a', 'd', 'arrowleft', 'arrowright'].includes(key)) sendKeyboardTouch(logicalWidth / 2, logicalHeight / 2, 'end');
   });
 
-  preloadGameImages().then(() => import('./game.js?v=entrance-v4')).then(() => {
+  preloadGameImages().then(() => import('./game.js?v=asset-sync-v1')).then(() => {
     document.body.dataset.gameLoaded = 'true';
     hideLoader();
   }).catch((error) => {
     console.error('Unable to start the browser edition', error);
+    showAssetLoadError(error);
     showBootError(error && error.message ? error.message : '请使用项目目录启动静态服务器后重试。');
   });
 }());

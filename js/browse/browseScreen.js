@@ -131,7 +131,7 @@ export default class BrowseScreen {
       ctx.fillStyle = '#eef3ff';
       ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('返回游戏', bb.x + bb.width / 2, bb.y + bb.height / 2 + 5);
+      ctx.fillText('返回开始界面', bb.x + bb.width / 2, bb.y + bb.height / 2 + 5);
       ctx.textAlign = 'left';
     }
 

@@ -9,10 +9,12 @@ const GOLD = '#f2c85f';
 
 const HUD_FRAME_HEIGHT = 58;
 const PAUSE_BUTTON = {
-  x: SCREEN_WIDTH - 112,
-  y: 8,
-  width: 100,
-  height: 42,
+  // Keep the icon inside the status bar's right content area instead of
+  // pinning it against the decorative frame edge.
+  x: SCREEN_WIDTH - 110,
+  y: 10,
+  width: 42,
+  height: 38,
 };
 const hudFrame = wx.createImage();
 let hudFrameLoaded = false;
@@ -40,7 +42,11 @@ function drawStatusBar(ctx, player, databus) {
   ctx.textBaseline = 'middle';
 
   const statY = HUD_FRAME_HEIGHT * 0.57;
-  const statX = [0.15, 0.35, 0.51, 0.65, 0.82];
+  // Lay the five values out as equal status slots and reserve the final slot
+  // for the pause icon so the whole row reads as one compact status bar.
+  const statLeft = 40;
+  const statRight = PAUSE_BUTTON.x - 24;
+  const statSlotWidth = (statRight - statLeft) / 5;
   const stats = [
     `TIME: ${databus.timeLeft}s`,
     `HP: ${Math.floor(player.hp)}`,
@@ -50,8 +56,14 @@ function drawStatusBar(ctx, player, databus) {
   ];
 
   stats.forEach((label, i) => {
+    const statX = statLeft + statSlotWidth * (i + 0.5);
     ctx.fillStyle = i === 1 ? '#ffdfbd' : TEXT;
-    ctx.fillText(label, SCREEN_WIDTH * statX[i], statY);
+    ctx.fillText(label, statX, statY);
+
+    if (i < stats.length - 1) {
+      ctx.fillStyle = 'rgba(216, 177, 111, 0.35)';
+      ctx.fillRect(statLeft + statSlotWidth * (i + 1) - 1, 17, 1, 23);
+    }
   });
   ctx.restore();
 
@@ -61,30 +73,13 @@ function drawStatusBar(ctx, player, databus) {
 function drawPauseButton(ctx) {
   const { x, y, width, height } = PAUSE_BUTTON;
   ctx.save();
-  ctx.fillStyle = 'rgba(5, 10, 24, 0.78)';
-  ctx.beginPath();
-  ctx.roundRect(x, y + 2, width, height, 10);
-  ctx.fill();
-
-  const gradient = ctx.createLinearGradient(x, y, x, y + height);
-  gradient.addColorStop(0, '#526a9b');
-  gradient.addColorStop(1, '#243354');
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.roundRect(x, y, width, height, 10);
-  ctx.fill();
-
-  ctx.strokeStyle = '#9eb2e0';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
+  // The status-bar artwork already provides the background. Keep only the
+  // pause glyph visible; the transparent rectangle remains the hit area.
   ctx.fillStyle = '#f6e8c4';
-  ctx.fillRect(x + 12, y + 12, 5, 18);
-  ctx.fillRect(x + 22, y + 12, 5, 18);
-  ctx.font = 'bold 12px Arial';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('PAUSE', x + 36, y + 21);
+  const iconX = x + (width - 14) / 2;
+  const iconY = y + (height - 18) / 2;
+  ctx.fillRect(iconX, iconY, 5, 18);
+  ctx.fillRect(iconX + 9, iconY, 5, 18);
   ctx.restore();
 }
 
