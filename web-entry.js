@@ -1,4 +1,4 @@
-import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v2';
+import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v3';
 
 const optimizedAssetSources = new Set(WEB_IMAGE_ASSETS.map((src) => src.replace(/^\.\//, '')));
 
@@ -19,6 +19,13 @@ const optimizedAssetSources = new Set(WEB_IMAGE_ASSETS.map((src) => src.replace(
     images: ['images/', 'Images/', '图片/'],
     audio: ['audio/', 'Audio/', '音频/'],
   };
+
+  function requestLandscape() {
+    const orientation = window.screen && window.screen.orientation;
+    if (orientation && orientation.lock) orientation.lock('landscape').catch(() => {});
+  }
+
+  window.addEventListener('pointerdown', requestLandscape, { once: true, passive: true });
 
   function assetCandidates(value) {
     if (typeof value !== 'string') return [value];
@@ -244,7 +251,7 @@ const optimizedAssetSources = new Set(WEB_IMAGE_ASSETS.map((src) => src.replace(
     if (['a', 'd', 'arrowleft', 'arrowright'].includes(key)) sendKeyboardTouch(logicalWidth / 2, logicalHeight / 2, 'end');
   });
 
-  preloadGameImages().then(() => import('./game.js?v=asset-sync-v2')).then(() => {
+  preloadGameImages().then(() => import('./game.js?v=asset-sync-v3')).then(() => {
     document.body.dataset.gameLoaded = 'true';
     hideLoader();
   }).catch((error) => {
