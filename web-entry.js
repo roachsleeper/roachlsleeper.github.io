@@ -1,4 +1,4 @@
-import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v1';
+import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v2';
 
 /* Browser adapter: the actual game is still js/main.js and its original modules. */
 (function () {
@@ -12,7 +12,7 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v1';
   // document URL, and retry common folder-name variants used by uploads.
   // Keep this adapter compatible with classic-script parsers used by some
   // game-dev tools. The page URL already points at this adapter's directory.
-  const assetBase = new URL('./', document.baseURI || window.location.href);
+  const assetBase = new URL('./', import.meta.url);
   const assetRoots = {
     images: ['images/', 'Images/', '图片/'],
     audio: ['audio/', 'Audio/', '音频/'],
@@ -42,12 +42,25 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v1';
     return new Promise((resolve) => {
       const image = new Image();
       let index = 0;
+      let retried = false;
       const next = () => {
         if (index >= candidates.length) return resolve(false);
-        image.src = candidates[index++];
+        const candidate = candidates[index];
+        image.onload = () => resolve(true);
+        image.onerror = () => {
+          if (!retried) {
+            retried = true;
+            const retryUrl = new URL(candidate);
+            retryUrl.searchParams.set('_asset_retry', String(Date.now()));
+            image.src = retryUrl.href;
+            return;
+          }
+          retried = false;
+          index += 1;
+          next();
+        };
+        image.src = candidate;
       };
-      image.onload = () => resolve(true);
-      image.onerror = next;
       next();
     });
   }
@@ -57,15 +70,22 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v1';
     let successful = 0;
     const failedAssets = [];
     const total = WEB_IMAGE_ASSETS.length;
-    return Promise.all(WEB_IMAGE_ASSETS.map((src) => preloadImage(src).then((ok) => {
-      loaded += 1;
-      if (ok) successful += 1;
-      else failedAssets.push(src);
-      const percent = Math.round((loaded / total) * 100);
-      progressBar.style.width = `${percent}%`;
-      progressSpark.style.left = `${percent}%`;
-      progressLabel.textContent = `资源同步 ${percent}% · ${loaded}/${total}`;
-    }))).then(() => {
+    let nextAsset = 0;
+    const workerCount = Math.min(6, total);
+    const loadWorker = async () => {
+      while (nextAsset < total) {
+        const src = WEB_IMAGE_ASSETS[nextAsset++];
+        const ok = await preloadImage(src);
+        loaded += 1;
+        if (ok) successful += 1;
+        else failedAssets.push(src);
+        const percent = Math.round((loaded / total) * 100);
+        progressBar.style.width = `${percent}%`;
+        progressSpark.style.left = `${percent}%`;
+        progressLabel.textContent = `资源同步 ${percent}% · ${loaded}/${total}`;
+      }
+    };
+    return Promise.all(Array.from({ length: workerCount }, loadWorker)).then(() => {
       if (!failedAssets.length) return;
       const error = new Error(`Asset load failed: ${failedAssets.length} failed; ${successful}/${total} loaded`);
       error.failedAssets = failedAssets;
@@ -217,7 +237,7 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v1';
     if (['a', 'd', 'arrowleft', 'arrowright'].includes(key)) sendKeyboardTouch(logicalWidth / 2, logicalHeight / 2, 'end');
   });
 
-  preloadGameImages().then(() => import('./game.js?v=asset-sync-v1')).then(() => {
+  preloadGameImages().then(() => import('./game.js?v=asset-sync-v2')).then(() => {
     document.body.dataset.gameLoaded = 'true';
     hideLoader();
   }).catch((error) => {
