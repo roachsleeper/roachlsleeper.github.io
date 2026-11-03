@@ -1,5 +1,7 @@
 import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v2';
 
+const optimizedAssetSources = new Set(WEB_IMAGE_ASSETS.map((src) => src.replace(/^\.\//, '')));
+
 /* Browser adapter: the actual game is still js/main.js and its original modules. */
 (function () {
   'use strict';
@@ -24,7 +26,12 @@ import { WEB_IMAGE_ASSETS } from './web-assets.js?v=asset-sync-v2';
     if (!match) return [value];
     const kind = match[1].toLowerCase();
     const relativeName = match[2];
-    return assetRoots[kind].map((root) => new URL(root + relativeName, assetBase).href);
+    const originalCandidates = assetRoots[kind].map((root) => new URL(root + relativeName, assetBase).href);
+    if (kind !== 'images' || !/\.(?:png|jpe?g)$/i.test(relativeName) || !optimizedAssetSources.has(`images/${relativeName}`)) {
+      return originalCandidates;
+    }
+    const optimizedName = relativeName.replace(/\.(?:png|jpe?g)$/i, '.webp');
+    return [new URL(`images-optimized/${optimizedName}`, assetBase).href, ...originalCandidates];
   }
 
   const loader = document.createElement('div');
